@@ -1,10 +1,20 @@
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
-
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
 
-let userSelectedDate = null;
+const refs = {
+  input: document.querySelector('#datetime-picker'),
+  start: document.querySelector('button[data-start]'),
+  days: document.querySelector('span[data-days]'),
+  hours: document.querySelector('span[data-hours]'),
+  mins: document.querySelector('span[data-minutes]'),
+  secs: document.querySelector('span[data-seconds]'),
+};
+
+let intervalId = null;
+let selectedDate = null;
+refs.start.disabled = true;
 
 const options = {
   enableTime: true,
@@ -12,67 +22,67 @@ const options = {
   defaultDate: new Date(),
   minuteIncrement: 1,
   onClose(selectedDates) {
-    const selectedDate = selectedDates[0];
-    if (selectedDate < new Date()) {
+    selectedDate = selectedDates[0];
+    console.log(selectedDates[0]);
+    if (selectedDates[0] < new Date()) {
+      refs.start.disabled = true;
       iziToast.error({
         title: 'Помилка',
-        message: 'Будь ласка, оберіть дату в майбутньому',
+        message: 'Будь ласка, введить дату в майбутньому',
       });
-      userSelectedDate = null;
-      document.getElementById('start-btn').disabled = true;
+      return;
     } else {
-      userSelectedDate = selectedDate;
-      document.getElementById('start-btn').disabled = false;
+      refs.start.disabled = false;
     }
   },
 };
-
 flatpickr('#datetime-picker', options);
 
-document.getElementById('start-btn').addEventListener('click', function () {
-  if (!userSelectedDate) {
-    iziToast.error({
-      title: 'Помилка',
-      message: 'Будь ласка, оберіть дату та час',
-    });
+refs.start.addEventListener('click', () => {
+  if (!selectedDate) {
     return;
   }
 
-  const endDate = userSelectedDate.getTime();
-  const timer = setInterval(function () {
-    const now = new Date().getTime();
-    const distance = endDate - now;
-    if (distance <= 0) {
-      clearInterval(timer);
-      document.getElementById('days').innerHTML = '00';
-      document.getElementById('hours').innerHTML = '00';
-      document.getElementById('minutes').innerHTML = '00';
-      document.getElementById('seconds').innerHTML = '00';
-      iziToast.success({
-        title: 'Час закінчився',
-      });
-    } else {
-      const { days, hours, minutes, seconds } = convertMs(distance);
-      document.getElementById('days').innerHTML = addLeadingZero(days);
-      document.getElementById('hours').innerHTML = addLeadingZero(hours);
-      document.getElementById('minutes').innerHTML = addLeadingZero(minutes);
-      document.getElementById('seconds').innerHTML = addLeadingZero(seconds);
+  intervalId = setInterval(() => {
+    const differenceInTime = selectedDate - new Date();
+
+    if (differenceInTime <= 0) {
+      clearInterval(intervalId);
+      refs.input.disabled = false;
+      return;
     }
+
+    const result = convertMs(differenceInTime);
+    viewOfTimer(result);
   }, 1000);
+
+  refs.start.disabled = true;
+  refs.input.disabled = true;
 });
+
+function viewOfTimer({ days, hours, minutes, seconds }) {
+  refs.days.textContent = `${days}`;
+  refs.hours.textContent = `${hours}`;
+  refs.mins.textContent = `${minutes}`;
+  refs.secs.textContent = `${seconds}`;
+}
+
+function addLeadingZero(value) {
+  return String(value).padStart(2, '0');
+}
 
 function convertMs(ms) {
   const second = 1000;
   const minute = second * 60;
   const hour = minute * 60;
   const day = hour * 24;
-  const days = Math.floor(ms / day);
-  const hours = Math.floor((ms % day) / hour);
-  const minutes = Math.floor((ms % hour) / minute);
-  const seconds = Math.floor((ms % minute) / second);
-  return { days, hours, minutes, seconds };
-}
 
-function addLeadingZero(value) {
-  return value.toString().padStart(2, '0');
+  const days = addLeadingZero(Math.floor(ms / day));
+  const hours = addLeadingZero(Math.floor((ms % day) / hour));
+  const minutes = addLeadingZero(Math.floor(((ms % day) % hour) / minute));
+  const seconds = addLeadingZero(
+    Math.floor((((ms % day) % hour) % minute) / second)
+  );
+
+  return { days, hours, minutes, seconds };
 }
